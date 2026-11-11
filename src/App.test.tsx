@@ -118,8 +118,7 @@ describe("U2 — Filter exclusion and empty state", () => {
 });
 
 describe("U3 — Per-room blocked status", () => {
-  it("persists per-room blocked overrides independently without mutating fixtures", async () => {
-    const user = userEvent.setup();
+  it("persists per-room blocked overrides independently without mutating fixtures", () => {
     render(<App />);
 
     // Select Room A and toggle blocked
