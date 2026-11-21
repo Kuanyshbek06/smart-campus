@@ -145,6 +145,7 @@ function App() {
                   <button
                     key={item}
                     type="button"
+                    aria-pressed={requiredEquipment.includes(item)}
                     onClick={() => toggleEquipment(item)}
                     className={`rounded-full px-3 py-1.5 text-xs font-medium capitalize transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500/40 ${
                       requiredEquipment.includes(item)
