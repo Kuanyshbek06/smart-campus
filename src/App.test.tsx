@@ -30,12 +30,6 @@ function getBlockedToggle(): HTMLButtonElement {
   return screen.getByRole("switch");
 }
 
-function getBlockedBadge(): string {
-  const toggle = getBlockedToggle();
-  const badge = toggle.parentElement?.querySelector("span.bg-rose-100, span.bg-emerald-100");
-  return badge?.textContent ?? "";
-}
-
 async function clickEquipment(user: ReturnType<typeof userEvent.setup>, name: string) {
   await user.click(screen.getByRole("button", { name: new RegExp(`^${name}$`, "i") }));
 }
@@ -124,15 +118,15 @@ describe("U3 — Per-room blocked status", () => {
     // Select Room A and toggle blocked
     selectRoom("lib-a");
     fireEvent.click(getBlockedToggle());
-    expect(getBlockedBadge()).toBe("Blocked");
+    expect(getBlockedToggle()).toHaveAttribute("aria-checked", "true");
 
     // Switch to Room B — should not be blocked
     selectRoom("lab-b");
-    expect(getBlockedBadge()).toBe("Not blocked");
+    expect(getBlockedToggle()).toHaveAttribute("aria-checked", "false");
 
     // Switch back to Room A — blocked persists
     selectRoom("lib-a");
-    expect(getBlockedBadge()).toBe("Blocked");
+    expect(getBlockedToggle()).toHaveAttribute("aria-checked", "true");
 
     // ROOMS fixture immutability checked in afterEach
   });
@@ -185,5 +179,29 @@ describe("U5 — Room-specific availability", () => {
 
     // Room D has no bookings; 730–760 is within 120 min and after NOW (540)
     expect(screen.getByText("Available")).toBeInTheDocument();
+  });
+});
+
+describe("U6 — Equipment filter accessibility", () => {
+  it("exposes the selected state with aria-pressed and updates it on toggle", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    const projector = screen.getByRole("button", { name: /^projector$/i });
+    const microphone = screen.getByRole("button", { name: /^microphone$/i });
+
+    expect(projector).toHaveAttribute("aria-pressed", "false");
+    expect(microphone).toHaveAttribute("aria-pressed", "false");
+
+    await user.click(projector);
+    expect(projector).toHaveAttribute("aria-pressed", "true");
+    expect(microphone).toHaveAttribute("aria-pressed", "false");
+
+    await user.click(microphone);
+    expect(microphone).toHaveAttribute("aria-pressed", "true");
+
+    await user.click(projector);
+    expect(projector).toHaveAttribute("aria-pressed", "false");
+    expect(microphone).toHaveAttribute("aria-pressed", "true");
   });
 });
