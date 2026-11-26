@@ -27,9 +27,11 @@ function App() {
   const [end, setEnd] = useState<string>("720");
   const [result, setResult] = useState<AvailabilityResult | null>(null);
 
+  const capacityValid = minCapacity.trim() === "" ||
+    (Number.isSafeInteger(Number(minCapacity)) && Number(minCapacity) >= 0);
   const filteredRooms = useMemo(
-    () => filterRooms(ROOMS, Number(minCapacity) || 0, requiredEquipment),
-    [minCapacity, requiredEquipment],
+    () => capacityValid ? filterRooms(ROOMS, Number(minCapacity) || 0, requiredEquipment) : [],
+    [capacityValid, minCapacity, requiredEquipment],
   );
 
   const selectedRoom =
@@ -127,6 +129,9 @@ function App() {
                 type="number"
                 inputMode="numeric"
                 min="0"
+                step="1"
+                aria-invalid={!capacityValid}
+                aria-describedby={!capacityValid ? "capacity-error" : undefined}
                 value={minCapacity}
                 onChange={(e) => {
                   setMinCapacity(e.target.value);
@@ -135,6 +140,11 @@ function App() {
                 placeholder="Any"
                 className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-base shadow-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/30"
               />
+              {!capacityValid && (
+                <span id="capacity-error" role="alert" className="mt-1 block text-sm text-rose-700">
+                  Minimum capacity must be a non-negative whole number.
+                </span>
+              )}
             </label>
             <div>
               <span className="mb-1.5 block text-sm font-medium text-slate-600">
@@ -171,10 +181,10 @@ function App() {
               <Search className="h-6 w-6 text-slate-400" />
             </div>
             <p className="text-base font-semibold text-slate-700">
-              No rooms match your filters
+              {capacityValid ? "No rooms match your filters" : "Invalid minimum capacity"}
             </p>
             <p className="mt-1 text-sm text-slate-500">
-              Try lowering the minimum capacity or removing required equipment.
+              {capacityValid ? "Try lowering the minimum capacity or removing required equipment." : "Enter a non-negative whole number to filter rooms."}
             </p>
           </section>
         ) : selectedRoom ? (
@@ -274,6 +284,7 @@ function App() {
                 <button
                   type="button"
                   role="switch"
+                  aria-label="Room blocked status"
                   aria-checked={effectiveBlocked}
                   onClick={() => {
                     setBlockedOverrides((prev) => ({
