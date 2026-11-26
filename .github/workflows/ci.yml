@@ -43,3 +43,34 @@ jobs:
 
       - name: Production build
         run: npm run build
+
+  prepare-lockfile:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Prepare compatible dependency lockfile
+        run: npm update --package-lock-only --ignore-scripts --no-audit
+      - name: Keep Vitest major version 2
+        run: |
+          node -e "const p=require('./package-lock.json').packages['node_modules/vitest']; if (!p || !p.version.startsWith('2.')) process.exit(1); console.log('Vitest:',p.version)"
+      - name: Record lockfile changes
+        run: git diff -- package-lock.json > lockfile.patch
+      - name: Audit proposed dependency set
+        run: npm audit --json > npm-audit.json || true
+      - name: Upload dependency review artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-lockfile-review
+          path: |
+            package-lock.json
+            lockfile.patch
+            npm-audit.json
+          retention-days: 7
