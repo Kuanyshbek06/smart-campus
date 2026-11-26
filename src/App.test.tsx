@@ -208,7 +208,7 @@ describe("U6 — Equipment filter accessibility", () => {
 
 
 describe("U7 - Capacity validation", () => {
-  it.each(["-1", "2.5", "abc"])("rejects invalid minimum capacity %s with clear feedback", (value) => {
+  it.each(["-1", "2.5", "9007199254740992"])("rejects invalid minimum capacity %s with clear feedback", (value) => {
     render(<App />);
     fireEvent.change(screen.getByPlaceholderText("Any"), { target: { value } });
     expect(screen.getByRole("alert")).toHaveTextContent("Minimum capacity must be a non-negative whole number.");
