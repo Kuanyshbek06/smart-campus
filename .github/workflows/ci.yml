@@ -119,3 +119,47 @@ jobs:
             git commit -m "chore: refresh compatible dependency lockfile"
             git push origin HEAD:assignment-06-work
           fi
+
+  trial-modern-toolchain:
+    if: github.event_name == 'workflow_dispatch' && !inputs.apply_lockfile && github.ref == 'refs/heads/assignment-06-work'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Prepare modern toolchain without committing
+        run: npm install --save-dev vite@^8 vitest@^5 @vitejs/plugin-react@latest --package-lock-only --ignore-scripts --no-audit
+      - name: Install proposed dependencies
+        run: npm ci
+      - name: Run tests
+        run: npm test
+      - name: Run lint
+        run: npm run lint
+      - name: Run typecheck
+        run: npm run typecheck
+      - name: Run production build
+        run: npm run build
+      - name: Record dependency audit
+        if: always()
+        run: npm audit --json > modern-audit.json || true
+      - name: Record changes
+        if: always()
+        run: git diff -- package.json package-lock.json > modern-toolchain.patch
+      - name: Upload proposed toolchain for review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: modern-toolchain-trial
+          path: |
+            package.json
+            package-lock.json
+            modern-toolchain.patch
+            modern-audit.json
+          retention-days: 7
