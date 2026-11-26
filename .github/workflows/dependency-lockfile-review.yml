@@ -1,0 +1,38 @@
+name: Dependency lockfile review
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  prepare-lockfile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Update lockfile within declared semver ranges
+        run: npm update --package-lock-only --ignore-scripts --no-audit
+      - name: Confirm Vitest major version remains 2
+        run: |
+          node -e "const p=require('./package-lock.json').packages['node_modules/vitest']; if (!p || !p.version.startsWith('2.')) process.exit(1); console.log('Vitest:',p.version)"
+      - name: Generate dependency diff
+        run: git diff -- package-lock.json > lockfile.patch
+      - name: Dependency audit (record findings without blocking artifact)
+        run: npm audit --json > npm-audit.json || true
+      - name: Upload review artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-lockfile-review
+          path: |
+            package-lock.json
+            lockfile.patch
+            npm-audit.json
+          retention-days: 7
