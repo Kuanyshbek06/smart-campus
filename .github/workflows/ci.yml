@@ -7,6 +7,11 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      apply_lockfile:
+        description: 'Commit compatible lockfile update to assignment-06-work'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -45,7 +50,7 @@ jobs:
         run: npm run build
 
   prepare-lockfile:
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && !inputs.apply_lockfile
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -74,3 +79,43 @@ jobs:
             lockfile.patch
             npm-audit.json
           retention-days: 7
+
+  apply-lockfile:
+    if: github.event_name == 'workflow_dispatch' && inputs.apply_lockfile && github.ref == 'refs/heads/assignment-06-work'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout approved branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Prepare compatible lockfile
+        run: npm update --package-lock-only --ignore-scripts --no-audit
+      - name: Ensure Vitest major stays at 2
+        run: |
+          node -e "const p=require('./package-lock.json').packages['node_modules/vitest']; if (!p || !p.version.startsWith('2.')) process.exit(1); console.log('Vitest:',p.version)"
+      - name: Verify lockfile installs and project checks
+        run: |
+          npm ci
+          npm test
+          npm run lint
+          npm run typecheck
+          npm run build
+      - name: Commit only reviewed lockfile path
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          if git diff --cached --quiet; then
+            echo "No lockfile changes to commit."
+          else
+            git commit -m "chore: refresh compatible dependency lockfile"
+            git push origin HEAD:assignment-06-work
+          fi
