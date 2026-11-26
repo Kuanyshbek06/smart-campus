@@ -205,3 +205,34 @@ describe("U6 — Equipment filter accessibility", () => {
     expect(microphone).toHaveAttribute("aria-pressed", "true");
   });
 });
+
+
+describe("U7 - Capacity validation", () => {
+  it.each(["-1", "2.5", "abc"])("rejects invalid minimum capacity %s with clear feedback", (value) => {
+    render(<App />);
+    fireEvent.change(screen.getByPlaceholderText("Any"), { target: { value } });
+    expect(screen.getByRole("alert")).toHaveTextContent("Minimum capacity must be a non-negative whole number.");
+    expect(screen.getByPlaceholderText("Any")).toHaveAttribute("aria-invalid", "true");
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+  });
+
+  it("allows zero and integer capacities", () => {
+    render(<App />);
+    const input = screen.getByPlaceholderText("Any");
+    fireEvent.change(input, { target: { value: "0" } });
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByText("4 rooms match")).toBeInTheDocument();
+    fireEvent.change(input, { target: { value: "8" } });
+    expect(screen.getByText("3 rooms match")).toBeInTheDocument();
+  });
+});
+
+describe("U8 - Blocked switch accessibility", () => {
+  it("provides an accessible name and reflects its state", () => {
+    render(<App />);
+    const toggle = screen.getByRole("switch", { name: "Room blocked status" });
+    expect(toggle).toHaveAttribute("aria-checked", "false");
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-checked", "true");
+  });
+});
