@@ -136,6 +136,10 @@ jobs:
           cache: npm
       - name: Prepare modern toolchain without committing
         run: npm install --save-dev vite@^8 vitest@^5 @vitejs/plugin-react@latest --package-lock-only --ignore-scripts --no-audit
+      - name: Trial Vitest-aware jest-dom types without committing
+        run: |
+          printf 'import "@testing-library/jest-dom/vitest";\n' > src/test/setup.ts
+          sed -i "s|from 'vite'|from 'vitest/config'|" vite.config.ts
       - name: Install proposed dependencies
         run: npm ci
       - name: Run tests
