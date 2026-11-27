@@ -140,6 +140,7 @@ jobs:
         run: |
           printf 'import "@testing-library/jest-dom/vitest";\n' > src/test/setup.ts
           sed -i "s|from 'vite'|from 'vitest/config'|" vite.config.ts
+          sed -i '/^\/\/\/ <reference types="vitest\/config" \/>$/d' vite.config.ts
       - name: Install proposed dependencies
         run: npm ci
       - name: Run tests
