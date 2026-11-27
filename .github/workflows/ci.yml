@@ -12,12 +12,17 @@ on:
         description: 'Commit compatible lockfile update to assignment-06-work'
         type: boolean
         default: false
+      apply_modern_toolchain:
+        description: 'Validate and commit Vite 8 / Vitest 5 upgrade'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 jobs:
   verify:
+    if: github.event_name != 'workflow_dispatch' || (!inputs.apply_modern_toolchain && !inputs.apply_lockfile && !inputs.apply_modern_toolchain)
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -81,7 +86,7 @@ jobs:
           retention-days: 7
 
   apply-lockfile:
-    if: github.event_name == 'workflow_dispatch' && inputs.apply_lockfile && github.ref == 'refs/heads/assignment-06-work'
+    if: github.event_name == 'workflow_dispatch' && inputs.apply_lockfile && !inputs.apply_modern_toolchain && github.ref == 'refs/heads/assignment-06-work'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -121,7 +126,7 @@ jobs:
           fi
 
   trial-modern-toolchain:
-    if: github.event_name == 'workflow_dispatch' && !inputs.apply_lockfile && github.ref == 'refs/heads/assignment-06-work'
+    if: github.event_name == 'workflow_dispatch' && !inputs.apply_lockfile && !inputs.apply_modern_toolchain && github.ref == 'refs/heads/assignment-06-work'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -168,3 +173,49 @@ jobs:
             modern-toolchain.patch
             modern-audit.json
           retention-days: 7
+
+  apply-modern-toolchain:
+    if: github.event_name == 'workflow_dispatch' && inputs.apply_modern_toolchain && !inputs.apply_lockfile && github.ref == 'refs/heads/assignment-06-work'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout approved branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Upgrade Vite and Vitest in isolated job
+        run: npm install --save-dev vite@^8 vitest@^5 @vitejs/plugin-react@latest --package-lock-only --ignore-scripts --no-audit
+      - name: Update Vitest test setup and configuration
+        run: |
+          printf 'import "@testing-library/jest-dom/vitest";\n' > src/test/setup.ts
+          sed -i "s|from 'vite'|from 'vitest/config'|" vite.config.ts
+          sed -i '/^\/\/\/ <reference types="vitest\/config" \/>$/d' vite.config.ts
+      - name: Install updated dependencies
+        run: npm ci
+      - name: Verify tests, lint, types and build
+        run: |
+          npm test
+          npm run lint
+          npm run typecheck
+          npm run build
+      - name: Audit updated dependencies
+        run: npm audit --audit-level=high
+      - name: Commit only verified toolchain changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json vite.config.ts src/test/setup.ts
+          git diff --cached --check
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "chore: upgrade Vite and Vitest after security verification"
+            git push origin HEAD:assignment-06-work
+          fi
